@@ -15,96 +15,59 @@ Get metrics from Google Analytics to fluentd.
 
 ```config
 <source>
-  type cloudwatch
-  tag cloudwatch
-  aws_key_id  YOUR_AWS_KEY_ID
-  aws_sec_key YOUR_AWS_SECRET_KEY
-  cw_endpoint ENDPOINT
-
-  namespace        [namespace]
-  statistics       [statistics] (default: Average)
-  metric_name      [metric name]
-  dimensions_name  [dimensions_name]
-  dimensions_value [dimensions value]
-  period           [period] (default: 300)
-  interval         [interval] (default: 300)
-  delayed_start    [bool] (default: false)
-  emit_zero        [bool] (default: false)
+  @type googleanalytics
+  id 'ga:<The ID of your Google Analytics profile'
+  start_date START_DATETIME
+  end_date END_DATETIME
+  dimensions 'ga:date'
+  metrics 'ga:<metric>,ga:<metric>,...' #https://developers.google.com/analytics/devguides/reporting/core/v3/reference#metrics
+  sort 'ga:<metric>'
 </source>
 ```
 
-### GET RDS Metric
+## config: id
 
-```config
-<source>
-  type cloudwatch
-  tag  cloudwatch
-  aws_key_id  YOUR_AWS_KEY_ID
-  aws_sec_key YOUR_AWS_SECRET_KEY
-  cw_endpoint monitoring.ap-northeast-1.amazonaws.com
+A profile id, in the format 'ga:XXXX'
+https://developers.google.com/analytics/devguides/reporting/core/v3/reference#ids
 
-  namespace AWS/RDS
-  metric_name CPUUtilization,FreeStorageSpace,DiskQueueDepth,FreeableMemory,SwapUsage,ReadIOPS,ReadLatency,ReadThroughput,WriteIOPS,WriteLatency,WriteThroughput
-  dimensions_name DBInstanceIdentifier
-  dimensions_value rds01
-</source>
+## config: start_date
 
-<match cloudwatch>
-  type copy
- <store>
-  type file
-  path /var/log/td-agent/test
- </store>
-</match>
+In the format YYYY-MM-DD, or relative by using today, yesterday, or the daysAgo pattern
+https://developers.google.com/analytics/devguides/reporting/core/v3/reference#startDate
 
-```
+## config: end_date
 
-#### output data format
+In the format YYYY-MM-DD, or relative by using today, yesterday, or the NdaysAgo pattern
+https://developers.google.com/analytics/devguides/reporting/core/v3/reference#endDate
 
-```
-2013-02-24T13:40:00+09:00       cloudwatch      {"CPUUtilization":2.0}
-2013-02-24T13:40:00+09:00       cloudwatch      {"FreeStorageSpace":104080723968.0}
-2013-02-24T13:39:00+09:00       cloudwatch      {"DiskQueueDepth":0.002000233360558732}
-2013-02-24T13:40:00+09:00       cloudwatch      {"FreeableMemory":6047948800.0}
-2013-02-24T13:40:00+09:00       cloudwatch      {"SwapUsage":0.0}
-2013-02-24T13:40:00+09:00       cloudwatch      {"ReadIOPS":0.4832769510223807}
-2013-02-24T13:40:00+09:00       cloudwatch      {"ReadLatency":0.0}
-2013-02-24T13:39:00+09:00       cloudwatch      {"ReadThroughput":0.0}
-2013-02-24T13:40:00+09:00       cloudwatch      {"WriteIOPS":5.116069791857616}
-2013-02-24T13:40:00+09:00       cloudwatch      {"WriteLatency":0.004106280193236715}
-2013-02-24T13:39:00+09:00       cloudwatch      {"WriteThroughput":54074.40992132284}
-```
+## config: metrics
 
-## config: Complex metric_name
+The aggregated statistics for user activity to your site, such as clicks or pageviews.
+Maximum of 10 metrics for any query
+https://developers.google.com/analytics/devguides/reporting/core/v3/reference#metrics
+For a full list of metrics, see the documentation
+https://developers.google.com/analytics/devguides/reporting/core/dimsmets
 
-`metric_name` format is allowed as below.
-- `MetricName`
-- `MetricName:Statstics`
+## config: dimensions
 
-For example, this configuration fetches "Sum of RequestCount" and "Average of Latancy".
+Breaks down metrics by common criteria; for example, by ga:browser or ga:city
+Maximum of 7 dimensions in any query
+https://developers.google.com/analytics/devguides/reporting/core/v3/reference#dimensions
+For a full list of dimensions, see the documentation
+https://developers.google.com/analytics/devguides/reporting/core/dimsmets
 
-```
-  metric_name RequestCount,Latency:Average
-  statistics Sum
-```
+## config: sort
 
-## config: delayed_start
+A list of metrics and dimensions indicating the sorting order and sorting direction for the returned data
+https://developers.google.com/analytics/devguides/reporting/core/v3/reference#sort
 
-When config `delayed_start` is set true, plugin startup will be delayed in random seconds(0 ~ interval).
+## config: interval
 
-## config: offset
+Set how frequently data should be retrieved. The default, `1`, means send a message every second.
 
-unit: seconds.
+## Other config options
 
-flunet-plugin-cloudwatch gets metrics between now and `period` &times; 10 sec ago, and pick a latest value from that.
-
-But the latest metric is insufficient for `statistics Sum`.
-
-If `offset` is specified, fluent-plugin-cloudwatch gets metrics between `offset` sec ago and older.
-
-## config: emit_zero
-
-If `emit_zero` is true and cloudwatch datapoint is empty, fluent-plugin-cloudwatch emits 0 instead of warn log "datapoint is empty".
+As you can see in the code more options are available but they are not implemented yet. They will be in future versions.
 
 ## Contributing
 
