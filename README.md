@@ -4,7 +4,6 @@
 
 ***Google Analytics*** input plugin.
 
-This plugin is simple.
 Get metrics from Google Analytics to fluentd.
 
 * Get metrics from Google API.
@@ -16,7 +15,7 @@ Get metrics from Google Analytics to fluentd.
 ```config
 <source>
   @type googleanalytics
-  id 'ga:<The ID of your Google Analytics profile'
+  id 'ga:GOOGLE_ANALYTICS_PROFILE_ID'
   start_date START_DATETIME
   end_date END_DATETIME
   dimensions 'ga:date'
@@ -25,9 +24,20 @@ Get metrics from Google Analytics to fluentd.
 </source>
 ```
 
+## Setup Google Analytics API access
+
+To make sure this plug-in is able to get data from Google Analytics some steps need to be taken.
+
+Use the following steps:
+1. Create a service account in the Google API console (https://console.developers.google.com/iam-admin/serviceaccounts/) and copy the Service account ID (an emailaddress)
+2. Create a service account key and download the JSON file (Not the P12 version) using the Google API console (https://console.developers.google.com/apis/credentials)
+3. Put the JSON file on the system where you run fluentd or td-agent
+4. Create an environment variable which points to the JSON file. (export GOOGLE_APPLICATION_CREDENTIALS=<path-to-JSONfile>)
+5. Add the Service account ID to the Google Analytics profile with read permissions
+
 ## config: id
 
-A profile id, in the format 'ga:XXXX'
+A profile id, in the format 'ga:XXXX'. Please make sure that the Service account ID created in the setup section has access to this profile.
 https://developers.google.com/analytics/devguides/reporting/core/v3/reference#ids
 
 ## config: start_date
