@@ -1,10 +1,10 @@
 require "fluent/input"
 require "googleauth"
-require "google/apis/analytics_v3"
+require "google/apis/analyticsreporting_v4"
 
 class Fluent::GoogleAnalyticsInput < Fluent::Input
   Fluent::Plugin.register_input("googleanalytics", self)
-  Analytics = Google::Apis::AnalyticsV3
+  Analyticsreporting = Google::Apis::AnalyticsreportingV4
 
   # To support log_level option implemented by Fluentd v0.10.43
   unless method_defined?(:log)
@@ -21,10 +21,10 @@ class Fluent::GoogleAnalyticsInput < Fluent::Input
   config_param :id, :validate => :string, :required => true
   # In the format YYYY-MM-DD, or relative by using today, yesterday, or the NdaysAgo pattern
   # https://developers.google.com/analytics/devguides/reporting/core/v3/reference#startDate
-  config_param :start_date, :validate => :string, :default => 'yesterday'
+  config_param :start_date, :validate => :string, :default => 'today'
   # In the format YYYY-MM-DD, or relative by using today, yesterday, or the NdaysAgo pattern
   # https://developers.google.com/analytics/devguides/reporting/core/v3/reference#endDate
-  config_param :end_date, :validate => :string, :default => 'yesterday'
+  config_param :end_date, :validate => :string, :default => 'today'
   # The aggregated statistics for user activity to your site, such as clicks or pageviews.
   # Maximum of 10 metrics for any query
   # https://developers.google.com/analytics/devguides/reporting/core/v3/reference#metrics
@@ -85,8 +85,8 @@ class Fluent::GoogleAnalyticsInput < Fluent::Input
     super
 
     log.debug "googleanalytics: initiate analytics objects"
-    @analytics = Analytics::AnalyticsService.new
-    @analytics.authorization = Google::Auth.get_application_default(Analytics::AUTH_ANALYTICS)
+    @analytics = Analyticsreporting::AnalyticsReportingService.new
+    @analytics.authorization = Google::Auth.get_application_default(Analyticsreporting::AUTH_ANALYTICS)
   end
 
   def start
@@ -155,37 +155,66 @@ class Fluent::GoogleAnalyticsInput < Fluent::Input
   def output
     begin
       log.debug "googleanalytics: try to get the data"
-      results = @analytics.get_ga_data(@id,
-                                     @start_date,
-                                     @end_date,
-                                     @metrics,
-                                     dimensions: @dimensions,
-                                     sort: @sort)
+      request = Google::Apis::AnalyticsreportingV4::GetReportsRequest.new
+      request.report_requests = build_report_request(@id, @start_date, @end_date, metrics.split(","), dimensions.split(","))
 
-      if results.rows.first
-        log.debug "googleanalytics: results found parsing started"
-        column_headers = results.column_headers.map { |h| h.name }
-        results.rows.each do |r|
-          ga_time = Time.now
-          ga_record = {}
-          column_headers.zip(r).each do |head,data|
-            if head == "ga:date"
-              timestring = Time.parse(data)
-              ga_time = timestring.to_i
-              ga_record['@timestamp'] = timestring.strftime("%FT%T%:z")
-            else
-              ga_record[head] = data
-            end
-          end
-          log.info "googleanalytics: #{ga_record}"
-          router.emit("googleanalytics", ga_time, ga_record)
-        end
-      else
-        log.warn("googleanalytics: results empty")
+      result = @analytics.batch_get_reports(request)
+
+      report = result.to_h[:reports].first
+      log.debug "googleanalytics: total: #{report[:data][:row_count]} rows."
+
+      if !report[:data].has_key?(:rows)
+        raise "googleanalytics: result doesn't contain rows."
       end
+
+      if report[:data][:rows].empty?
+        raise "googleanalytics: result has 0 rows."
+      end
+
+      dimensions = report[:column_header][:dimensions]
+      metrics = report[:column_header][:metric_header][:metric_header_entries].map{|m| m[:name]}
+      report[:data][:rows].each do |row|
+        dim = dimensions.zip(row[:dimensions]).to_h
+        met = metrics.zip(row[:metrics].first[:values]).to_h
+        ga_record = dim.merge(met)
+
+        now = DateTime.now
+        timestring = DateTime.new(now.year, now.month, now.day, dim['ga:hour'].to_i, 00, 00) 
+        ga_time = timestring.to_time.to_i
+        ga_record['@timestamp'] = timestring.strftime("%FT%T%:z")
+
+        #log.info "googleanalytics: #{ga_record}"
+        router.emit("googleanalytics", ga_time, ga_record)
+      end
+
     rescue => err
-      log.fatal("Caught exception; exiting")
+      log.fatal("googleanalytics: caught exception; exiting")
       log.fatal(err)
     end
+  end
+
+  def build_report_request(view_id, start_date, end_date, metrics, dimensions, page_token = nil)
+    query = {
+      view_id: view_id,
+      dimensions: dimensions.map{|d| {name: d}},
+      metrics: metrics.map{|m| {expression: m}},
+      include_empty_rows: true,
+      #page_size: preview? ? 10 : 10000,
+    }
+
+    if start_date || end_date
+      query[:date_ranges] = [{
+        start_date: start_date,
+        end_date: end_date,
+      }]
+    end
+
+    if page_token
+      query[:page_token] = page_token
+    end
+
+    log.info "googleanalytics: query is #{query}"
+
+    [query]
   end
 end
