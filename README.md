@@ -18,7 +18,7 @@ Get metrics from Google Analytics to fluentd.
   id 'ga:GOOGLE_ANALYTICS_PROFILE_ID'
   start_date START_DATETIME
   end_date END_DATETIME
-  dimensions 'ga:date'
+  dimensions 'ga:<metric>,'
   metrics 'ga:<metric>,ga:<metric>,...' #https://developers.google.com/analytics/devguides/reporting/core/v3/reference#metrics
   sort 'ga:<metric>'
 </source>
