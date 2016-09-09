@@ -179,11 +179,12 @@ class Fluent::GoogleAnalyticsInput < Fluent::Input
         ga_record = dim.merge(met)
 
         now = DateTime.now
-        timestring = DateTime.new(now.year, now.month, now.day, dim['ga:hour'].to_i, 00, 00) 
+        timestring = DateTime.new(now.year, now.month, now.day, dim['ga:hour'].to_i, 00, 00, now.offset)
         ga_time = timestring.to_time.to_i
         ga_record['@timestamp'] = timestring.strftime("%FT%T%:z")
 
-        #log.info "googleanalytics: #{ga_record}"
+        log.info "googleanalytics: #{ga_time}"
+        log.info "googleanalytics: #{ga_record}"
         router.emit("googleanalytics", ga_time, ga_record)
       end
 
