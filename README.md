@@ -79,6 +79,10 @@ Set how frequently data should be retrieved. The default, `1`, means send a mess
 
 As you can see in the code more options are available but they are not implemented yet. They will be in future versions.
 
+## ChangeLog
+
+See [CHANGELOG](CHANGELOG.md) for details.
+
 ## Contributing
 
 1. Fork it
