@@ -4,7 +4,7 @@ $LOAD_PATH.unshift(lib) unless $LOAD_PATH.include?(lib)
 
 Gem::Specification.new do |gem|
   gem.name          = "fluent-plugin-googleanalytics"
-  gem.version       = "0.9.2"
+  gem.version       = "0.3.0"
   gem.authors       = "Coen Meerbeek"
   gem.email         = "cmeerbeek@gmail.com"
   gem.description   = %q{Input plugin for Google Analytics.}

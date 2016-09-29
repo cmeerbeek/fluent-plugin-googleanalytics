@@ -84,6 +84,9 @@ class Fluent::GoogleAnalyticsInput < Fluent::Input
   def configure(conf)
     super
 
+    @dims = conf['dimensions']
+    log.debug "googleanalytics: dimension is #{@dims.split(",")[0]}"
+
     log.debug "googleanalytics: initiate analytics objects"
     @analytics = Analyticsreporting::AnalyticsReportingService.new
     @analytics.authorization = Google::Auth.get_application_default(Analyticsreporting::AUTH_ANALYTICS)
@@ -156,7 +159,7 @@ class Fluent::GoogleAnalyticsInput < Fluent::Input
     begin
       log.debug "googleanalytics: try to get the data"
       request = Google::Apis::AnalyticsreportingV4::GetReportsRequest.new
-      request.report_requests = build_report_request(@id, @start_date, @end_date, metrics.split(","), dimensions.split(","))
+      request.report_requests = build_report_request(@id, @start_date, @end_date, metrics.split(","), @dims.split(","))
 
       result = @analytics.batch_get_reports(request)
 
@@ -179,12 +182,15 @@ class Fluent::GoogleAnalyticsInput < Fluent::Input
         ga_record = dim.merge(met)
 
         now = DateTime.now
-        timestring = DateTime.new(now.year, now.month, now.day, dim['ga:hour'].to_i, 00, 00, now.offset)
+        if @dims.split(",")[0] == 'ga:hour'
+          timestring = DateTime.new(now.year, now.month, now.day, dim['ga:hour'].to_i, 00, 00, now.offset)
+        else @dims.split(",")[0] == 'ga:day'
+          timestring = DateTime.new(now.year, now.month, dim['ga:day'].to_i, 00, 00, 00, now.offset)
+        end
         ga_time = timestring.to_time.to_i
         ga_record['@timestamp'] = timestring.strftime("%FT%T%:z")
 
-        log.info "googleanalytics: #{ga_time}"
-        log.info "googleanalytics: #{ga_record}"
+        log.debug "googleanalytics: #{ga_record}"
         router.emit("googleanalytics", ga_time, ga_record)
       end
 
@@ -214,7 +220,7 @@ class Fluent::GoogleAnalyticsInput < Fluent::Input
       query[:page_token] = page_token
     end
 
-    log.info "googleanalytics: query is #{query}"
+    log.debug "googleanalytics: query is #{query}"
 
     [query]
   end
